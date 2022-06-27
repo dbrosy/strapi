@@ -1,14 +1,25 @@
-FROM node:16
-# Installing libvips-dev for sharp Compatability
-RUN apt-get update && apt-get install libvips-dev -y
-ARG NODE_ENV=development
-ENV NODE_ENV=${NODE_ENV}
-WORKDIR /opt/
-COPY ./package.json ./yarn.lock ./
-ENV PATH /opt/node_modules/.bin:$PATH
-RUN yarn config set network-timeout 600000 -g && yarn install
-WORKDIR /opt/app
-COPY ./ .
-RUN yarn build
+# BASE
+ARG NODE_VERSION=14
+FROM node:${NODE_VERSION}-alpine AS base-alpine
 EXPOSE 1337
-CMD ["yarn", "develop"]
+
+FROM base-alpine
+
+ARG STRAPI_VERSION=latest
+
+RUN yarn global add @strapi/strapi@${STRAPI_VERSION}
+
+
+RUN mkdir -p /srv/app && chown 1000:1000 -R /srv/app
+
+WORKDIR /srv/app
+
+VOLUME /srv/app
+
+COPY docker-entrypoint.sh /usr/local/bin/
+
+RUN chmod 777 /usr/local/bin/docker-entrypoint.sh && ln -s /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+CMD ["strapi"]
